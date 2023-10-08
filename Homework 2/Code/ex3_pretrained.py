@@ -31,7 +31,7 @@ num_epochs = 30
 batch_size = 200
 learning_rate = 1e-3
 learning_rate_decay = 0.99
-reg=0#0.001
+reg=0 #0.001
 num_training= 49000
 num_validation =1000
 fine_tune = True
@@ -45,6 +45,12 @@ data_aug_transforms = [transforms.RandomHorizontalFlip(p=0.5)]#, transforms.Rand
 # TODO: Add to data_aug_transforms the best performing data augmentation      #
 # strategy and hyper-parameters as found out in Q3.a                          #
 ###############################################################################
+
+#data_aug_transforms.append(transforms.RandomHorizontalFlip())
+#data_aug_transforms.append(transforms.RandomCrop(32, padding=3))
+#data_aug_transforms.append(transforms.RandomRotation(10))
+#data_aug_transforms.append(transforms.ColorJitter(brightness=0.2, contrast=0.2, saturation=0.2, hue=0.2))
+#data_aug_transforms.append(transforms.RandomGrayscale(p=0.1))
 
 norm_transform = transforms.Compose(data_aug_transforms+[transforms.ToTensor(),
                                      transforms.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225]),
@@ -98,8 +104,22 @@ class VggModel(nn.Module):
         # disable training the feature extraction layers based on the fine_tune flag.   #
         #################################################################################
         # *****START OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
-
         
+        layers = []
+
+        self.vgg11bn_model = models.vgg11_bn(pretrained)
+        self.vgg11bn_features = self.vgg11bn_model.features
+
+        #Train only the newly added layers by disabling gradients for the rest of the network 
+        set_parameter_requires_grad(self, fine_tune)
+
+        layers.append(nn.Flatten())
+        layers.append(nn.Linear(layer_config[0], layer_config[1]))
+        layers.append(nn.BatchNorm1d(layer_config[1]))
+        layers.append(nn.ReLU())
+        layers.append(nn.Linear(layer_config[1], n_class))
+
+        self.layers = nn.Sequential(*layers)
 
         # *****END OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
 
@@ -109,7 +129,8 @@ class VggModel(nn.Module):
         #################################################################################
         # *****START OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
 
-        
+        x = self.vgg11bn_features(x)
+        out = self.layers(x)
 
         # *****END OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
         return out
@@ -132,7 +153,7 @@ if fine_tune:
     params_to_update = []
     # *****START OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
     
-    
+    params_to_update = model.layers.parameters() #Only update the parameters of the top layers
     
     # *****END OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
 else:
@@ -220,7 +241,9 @@ for epoch in range(num_epochs):
 
         # *****START OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
 
-
+        if (best_accuracy is None or accuracy > best_accuracy):
+            best_accuracy = accuracy
+            best_model = model
 
         # *****END OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
 
@@ -250,7 +273,8 @@ plt.show()
 #################################################################################
 # *****START OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
 
-
+print("Best model accuracy is: " + str(best_accuracy) + " %")
+model = best_model
 
 # *****END OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
 
