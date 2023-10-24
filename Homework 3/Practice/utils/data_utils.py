@@ -7,6 +7,8 @@ import torch
 import os
 from utils import forward_kinematics
 
+device = torch.device("cpu")
+
 
 def rotmat2euler(R):
     """
@@ -22,21 +24,21 @@ def rotmat2euler(R):
     if R[0, 2] == 1 or R[0, 2] == -1:
         # special case
         E3 = 0  # set arbitrarily
-        dlta = np.arctan2(R[0, 1], R[0, 2]);
+        dlta = np.arctan2(R[0, 1], R[0, 2])
 
         if R[0, 2] == -1:
-            E2 = np.pi / 2;
-            E1 = E3 + dlta;
+            E2 = np.pi / 2
+            E1 = E3 + dlta
         else:
-            E2 = -np.pi / 2;
-            E1 = -E3 + dlta;
+            E2 = -np.pi / 2
+            E1 = -E3 + dlta
 
     else:
         E2 = -np.arcsin(R[0, 2])
         E1 = np.arctan2(R[1, 2] / np.cos(E2), R[2, 2] / np.cos(E2))
         E3 = np.arctan2(R[0, 1] / np.cos(E2), R[0, 0] / np.cos(E2))
 
-    eul = np.array([E1, E2, E3]);
+    eul = np.array([E1, E2, E3])
     return eul
 
 
@@ -51,18 +53,18 @@ def rotmat2quat(R):
     Returns
       q: 1x4 quaternion
     """
-    rotdiff = R - R.T;
+    rotdiff = R - R.T
 
     r = np.zeros(3)
     r[0] = -rotdiff[1, 2]
     r[1] = rotdiff[0, 2]
     r[2] = -rotdiff[0, 1]
-    sintheta = np.linalg.norm(r) / 2;
-    r0 = np.divide(r, np.linalg.norm(r) + np.finfo(np.float32).eps);
+    sintheta = np.linalg.norm(r) / 2
+    r0 = np.divide(r, np.linalg.norm(r) + np.finfo(np.float32).eps)
 
-    costheta = (np.trace(R) - 1) / 2;
+    costheta = (np.trace(R) - 1) / 2
 
-    theta = np.arctan2(sintheta, costheta);
+    theta = np.arctan2(sintheta, costheta)
 
     q = np.zeros(4)
     q[0] = np.cos(theta / 2)
@@ -71,7 +73,7 @@ def rotmat2quat(R):
 
 
 def rotmat2expmap(R):
-    return quat2expmap(rotmat2quat(R));
+    return quat2expmap(rotmat2quat(R))
 
 
 def expmap2rotmat(r):
@@ -90,7 +92,8 @@ def expmap2rotmat(r):
     r0 = np.divide(r, theta + np.finfo(np.float32).eps)
     r0x = np.array([0, -r0[2], r0[1], 0, 0, -r0[0], 0, 0, 0]).reshape(3, 3)
     r0x = r0x - r0x.T
-    R = np.eye(3, 3) + np.sin(theta) * r0x + (1 - np.cos(theta)) * (r0x).dot(r0x);
+    R = np.eye(3, 3) + np.sin(theta) * r0x + \
+        (1 - np.cos(theta)) * (r0x).dot(r0x)
     return R
 
 
@@ -113,7 +116,7 @@ def quat2expmap(q):
     sinhalftheta = np.linalg.norm(q[1:])
     coshalftheta = q[0]
 
-    r0 = np.divide(q[1:], (np.linalg.norm(q[1:]) + np.finfo(np.float32).eps));
+    r0 = np.divide(q[1:], (np.linalg.norm(q[1:]) + np.finfo(np.float32).eps))
     theta = 2 * np.arctan2(sinhalftheta, coshalftheta)
     theta = np.mod(theta + 2 * np.pi, 2 * np.pi)
 
@@ -242,9 +245,11 @@ def normalize_data(data, data_mean, data_std, dim_to_use, actions, one_hot):
     else:
         # TODO hard-coding 99 dimensions for un-normalized human poses
         for key in data.keys():
-            data_out[key] = np.divide((data[key][:, 0:99] - data_mean), data_std)
+            data_out[key] = np.divide(
+                (data[key][:, 0:99] - data_mean), data_std)
             data_out[key] = data_out[key][:, dim_to_use]
-            data_out[key] = np.hstack((data_out[key], data[key][:, -nactions:]))
+            data_out[key] = np.hstack(
+                (data_out[key], data[key][:, -nactions:]))
 
     return data_out
 
@@ -342,7 +347,8 @@ def load_data_cmu(path_to_dataset, actions, input_n, output_n, data_std=0, data_
         for _ in os.listdir(path):
             count = count + 1
         for examp_index in np.arange(count):
-            filename = '{}/{}/{}_{}.txt'.format(path_to_dataset, action, action, examp_index + 1)
+            filename = '{}/{}/{}_{}.txt'.format(
+                path_to_dataset, action, action, examp_index + 1)
             action_sequence = readCSVasFloat(filename)
             n, d = action_sequence.shape
             even_list = range(0, n, 2)
@@ -359,8 +365,10 @@ def load_data_cmu(path_to_dataset, actions, input_n, output_n, data_std=0, data_
                     sampled_seq = seq_sel
                     complete_seq = the_sequence
                 else:
-                    sampled_seq = np.concatenate((sampled_seq, seq_sel), axis=0)
-                    complete_seq = np.append(complete_seq, the_sequence, axis=0)
+                    sampled_seq = np.concatenate(
+                        (sampled_seq, seq_sel), axis=0)
+                    complete_seq = np.append(
+                        complete_seq, the_sequence, axis=0)
             else:
                 source_seq_len = 50
                 target_seq_len = 25
@@ -371,14 +379,16 @@ def load_data_cmu(path_to_dataset, actions, input_n, output_n, data_std=0, data_
                 for _ in range(batch_size):
                     idx = rng.randint(0, num_frames - total_frames)
                     seq_sel = the_sequence[
-                              idx + (source_seq_len - input_n):(idx + source_seq_len + output_n), :]
+                        idx + (source_seq_len - input_n):(idx + source_seq_len + output_n), :]
                     seq_sel = np.expand_dims(seq_sel, axis=0)
                     if len(sampled_seq) == 0:
                         sampled_seq = seq_sel
                         complete_seq = the_sequence
                     else:
-                        sampled_seq = np.concatenate((sampled_seq, seq_sel), axis=0)
-                        complete_seq = np.append(complete_seq, the_sequence, axis=0)
+                        sampled_seq = np.concatenate(
+                            (sampled_seq, seq_sel), axis=0)
+                        complete_seq = np.append(
+                            complete_seq, the_sequence, axis=0)
 
     if not is_test:
         data_std = np.std(complete_seq, axis=0)
@@ -406,10 +416,11 @@ def load_data_cmu_3d(path_to_dataset, actions, input_n, output_n, data_std=0, da
         for _ in os.listdir(path):
             count = count + 1
         for examp_index in np.arange(count):
-            filename = '{}/{}/{}_{}.txt'.format(path_to_dataset, action, action, examp_index + 1)
+            filename = '{}/{}/{}_{}.txt'.format(
+                path_to_dataset, action, action, examp_index + 1)
             action_sequence = readCSVasFloat(filename)
             n, d = action_sequence.shape
-            exptmps = torch.from_numpy(action_sequence).float().cuda()
+            exptmps = torch.from_numpy(action_sequence).float().to(device)
             xyz = expmap2xyz_torch_cmu(exptmps)
             xyz = xyz.view(-1, 38 * 3)
             xyz = xyz.cpu().data.numpy()
@@ -429,8 +440,10 @@ def load_data_cmu_3d(path_to_dataset, actions, input_n, output_n, data_std=0, da
                     sampled_seq = seq_sel
                     complete_seq = the_sequence
                 else:
-                    sampled_seq = np.concatenate((sampled_seq, seq_sel), axis=0)
-                    complete_seq = np.append(complete_seq, the_sequence, axis=0)
+                    sampled_seq = np.concatenate(
+                        (sampled_seq, seq_sel), axis=0)
+                    complete_seq = np.append(
+                        complete_seq, the_sequence, axis=0)
             else:
                 source_seq_len = 50
                 target_seq_len = 25
@@ -441,22 +454,26 @@ def load_data_cmu_3d(path_to_dataset, actions, input_n, output_n, data_std=0, da
                 for _ in range(batch_size):
                     idx = rng.randint(0, num_frames - total_frames)
                     seq_sel = the_sequence[
-                              idx + (source_seq_len - input_n):(idx + source_seq_len + output_n), :]
+                        idx + (source_seq_len - input_n):(idx + source_seq_len + output_n), :]
                     seq_sel = np.expand_dims(seq_sel, axis=0)
                     if len(sampled_seq) == 0:
                         sampled_seq = seq_sel
                         complete_seq = the_sequence
                     else:
-                        sampled_seq = np.concatenate((sampled_seq, seq_sel), axis=0)
-                        complete_seq = np.append(complete_seq, the_sequence, axis=0)
+                        sampled_seq = np.concatenate(
+                            (sampled_seq, seq_sel), axis=0)
+                        complete_seq = np.append(
+                            complete_seq, the_sequence, axis=0)
 
     if not is_test:
         data_std = np.std(complete_seq, axis=0)
         data_mean = np.mean(complete_seq, axis=0)
 
     joint_to_ignore = np.array([0, 1, 2, 7, 8, 13, 16, 20, 29, 24, 27, 33, 36])
-    dimensions_to_ignore = np.concatenate((joint_to_ignore * 3, joint_to_ignore * 3 + 1, joint_to_ignore * 3 + 2))
-    dimensions_to_use = np.setdiff1d(np.arange(complete_seq.shape[1]), dimensions_to_ignore)
+    dimensions_to_ignore = np.concatenate(
+        (joint_to_ignore * 3, joint_to_ignore * 3 + 1, joint_to_ignore * 3 + 2))
+    dimensions_to_use = np.setdiff1d(
+        np.arange(complete_seq.shape[1]), dimensions_to_ignore)
 
     data_std[dimensions_to_ignore] = 1.0
     data_mean[dimensions_to_ignore] = 0.0
@@ -473,12 +490,14 @@ def rotmat2euler_torch(R):
     :return: N*3
     """
     n = R.data.shape[0]
-    eul = torch.zeros(n, 3).float().cuda()
-    idx_spec1 = (R[:, 0, 2] == 1).nonzero().cpu().data.numpy().reshape(-1).tolist()
-    idx_spec2 = (R[:, 0, 2] == -1).nonzero().cpu().data.numpy().reshape(-1).tolist()
+    eul = torch.zeros(n, 3).float().to(device)
+    idx_spec1 = (R[:, 0, 2] == 1).nonzero(
+    ).cpu().data.numpy().reshape(-1).tolist()
+    idx_spec2 = (R[:, 0, 2] == -
+                 1).nonzero().cpu().data.numpy().reshape(-1).tolist()
     if len(idx_spec1) > 0:
         R_spec1 = R[idx_spec1, :, :]
-        eul_spec1 = torch.zeros(len(idx_spec1), 3).float().cuda()
+        eul_spec1 = torch.zeros(len(idx_spec1), 3).float().to(device)
         eul_spec1[:, 2] = 0
         eul_spec1[:, 1] = -np.pi / 2
         delta = torch.atan2(R_spec1[:, 0, 1], R_spec1[:, 0, 2])
@@ -487,7 +506,7 @@ def rotmat2euler_torch(R):
 
     if len(idx_spec2) > 0:
         R_spec2 = R[idx_spec2, :, :]
-        eul_spec2 = torch.zeros(len(idx_spec2), 3).float().cuda()
+        eul_spec2 = torch.zeros(len(idx_spec2), 3).float().to(device)
         eul_spec2[:, 2] = 0
         eul_spec2[:, 1] = np.pi / 2
         delta = torch.atan2(R_spec2[:, 0, 1], R_spec2[:, 0, 2])
@@ -495,10 +514,11 @@ def rotmat2euler_torch(R):
         eul[idx_spec2] = eul_spec2
 
     idx_remain = np.arange(0, n)
-    idx_remain = np.setdiff1d(np.setdiff1d(idx_remain, idx_spec1), idx_spec2).tolist()
+    idx_remain = np.setdiff1d(np.setdiff1d(
+        idx_remain, idx_spec1), idx_spec2).tolist()
     if len(idx_remain) > 0:
         R_remain = R[idx_remain, :, :]
-        eul_remain = torch.zeros(len(idx_remain), 3).float().cuda()
+        eul_remain = torch.zeros(len(idx_remain), 3).float().to(device)
         eul_remain[:, 1] = -torch.asin(R_remain[:, 0, 2])
         eul_remain[:, 0] = torch.atan2(R_remain[:, 1, 2] / torch.cos(eul_remain[:, 1]),
                                        R_remain[:, 2, 2] / torch.cos(eul_remain[:, 1]))
@@ -529,7 +549,7 @@ def rotmat2quat_torch(R):
     t3 = R[:, 2, 2]
     costheta = (t1 + t2 + t3 - 1) / 2
     theta = torch.atan2(sintheta, costheta)
-    q = torch.zeros(R.shape[0], 4).float().cuda()
+    q = torch.zeros(R.shape[0], 4).float().to(device)
     q[:, 0] = torch.cos(theta / 2)
     q[:, 1:] = torch.mul(r0, torch.sin(theta / 2).unsqueeze(1).repeat(1, 3))
 
@@ -568,7 +588,7 @@ def expmap2rotmat_torch(r):
     r1 = r1.view(-1, 3, 3)
     r1 = r1 - r1.transpose(1, 2)
     n = r1.data.shape[0]
-    R = torch.eye(3, 3).repeat(n, 1, 1).float().cuda() + torch.mul(
+    R = torch.eye(3, 3).repeat(n, 1, 1).float().to(device) + torch.mul(
         torch.sin(theta).unsqueeze(1).repeat(1, 9).view(-1, 3, 3), r1) + torch.mul(
         (1 - torch.cos(theta).unsqueeze(1).repeat(1, 9).view(-1, 3, 3)), torch.matmul(r1, r1))
     return R
@@ -581,7 +601,8 @@ def expmap2xyz_torch(expmap):
     :return: N*32*3
     """
     parent, offset, rotInd, expmapInd = forward_kinematics._some_variables()
-    xyz = forward_kinematics.fkl_torch(expmap, parent, offset, rotInd, expmapInd)
+    xyz = forward_kinematics.fkl_torch(
+        expmap, parent, offset, rotInd, expmapInd)
     return xyz
 
 
@@ -618,8 +639,10 @@ def find_indices_256(frame_num1, frame_num2, seq_len, input_n=10):
     for _ in np.arange(0, 128):
         idx_ran1 = rng.randint(16, T1)
         idx_ran2 = rng.randint(16, T2)
-        idxs1 = np.arange(idx_ran1 + 50 - input_n, idx_ran1 + 50 - input_n + seq_len)
-        idxs2 = np.arange(idx_ran2 + 50 - input_n, idx_ran2 + 50 - input_n + seq_len)
+        idxs1 = np.arange(idx_ran1 + 50 - input_n,
+                          idx_ran1 + 50 - input_n + seq_len)
+        idxs2 = np.arange(idx_ran2 + 50 - input_n,
+                          idx_ran2 + 50 - input_n + seq_len)
         if idxo1 is None:
             idxo1 = idxs1
             idxo2 = idxs2
@@ -652,8 +675,10 @@ def find_indices_srnn(frame_num1, frame_num2, seq_len, input_n=10):
         idx_ran2 = rng.randint(16, T2)
         # print("subact1 {}".format(idx_ran1))
         # print("subact2 {}".format(idx_ran2))
-        idxs1 = np.arange(idx_ran1 + 50 - input_n, idx_ran1 + 50 - input_n + seq_len)
-        idxs2 = np.arange(idx_ran2 + 50 - input_n, idx_ran2 + 50 - input_n + seq_len)
+        idxs1 = np.arange(idx_ran1 + 50 - input_n,
+                          idx_ran1 + 50 - input_n + seq_len)
+        idxs2 = np.arange(idx_ran2 + 50 - input_n,
+                          idx_ran2 + 50 - input_n + seq_len)
         if idxo1 is None:
             idxo1 = idxs1
             idxo2 = idxs2
