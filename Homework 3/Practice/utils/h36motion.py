@@ -9,7 +9,7 @@ import torch
 
 class Datasets(Dataset):
 
-    def __init__(self, path,input_n,output_n,skip_rate, actions=None, split=0):
+    def __init__(self, path, input_n, output_n, skip_rate, actions=None, split=0):
         """
         :param path_to_data:
         :param actions:
@@ -36,7 +36,7 @@ class Datasets(Dataset):
               98]])
 
         seq_len = self.in_n + self.out_n
-        subs = np.array([[1], [11], [5]]) # , 6, 7, 8, 9
+        subs = np.array([[1], [11], [5]])  # , 6, 7, 8, 9
         # acts = data_utils.define_actions(actions)
         if actions is None:
             acts = ["walking", "eating", "smoking", "discussion", "directions",
@@ -55,54 +55,60 @@ class Datasets(Dataset):
                 action = acts[action_idx]
                 if self.split <= 1:
                     for subact in [1, 2]:  # subactions
-                        #print("Reading subject {0}, action {1}, subaction {2}".format(subj, action, subact))
-                        filename = '{0}/S{1}/{2}_{3}.txt'.format(self.path_to_data, subj, action, subact)
+                        # print("Reading subject {0}, action {1}, subaction {2}".format(subj, action, subact))
+                        filename = '{0}/S{1}/{2}_{3}.txt'.format(
+                            self.path_to_data, subj, action, subact)
                         the_sequence = data_utils.readCSVasFloat(filename)
                         n, d = the_sequence.shape
                         even_list = range(0, n, self.sample_rate)
                         num_frames = len(even_list)
                         the_sequence = np.array(the_sequence[even_list, :])
-                        # the_sequence = torch.from_numpy(the_sequence).float().cuda()
+                        # the_sequence = torch.from_numpy(the_sequence).float().to(device)
                         # remove global rotation and translation
                         the_sequence[:, 0:6] = 0
                         # p3d = data_utils.expmap2xyz_torch(the_sequence)
                         self.seq[(subj, action, subact)] = the_sequence
 
-                        valid_frames = np.arange(0, num_frames - seq_len + 1, skip_rate)
+                        valid_frames = np.arange(
+                            0, num_frames - seq_len + 1, skip_rate)
 
-                        tmp_data_idx_1 = [(subj, action, subact)] * len(valid_frames)
+                        tmp_data_idx_1 = [
+                            (subj, action, subact)] * len(valid_frames)
                         tmp_data_idx_2 = list(valid_frames)
-                        self.data_idx.extend(zip(tmp_data_idx_1, tmp_data_idx_2))
+                        self.data_idx.extend(
+                            zip(tmp_data_idx_1, tmp_data_idx_2))
                 else:
-                    #print("Reading subject {0}, action {1}, subaction {2}".format(subj, action, 1))
-                    filename = '{0}/S{1}/{2}_{3}.txt'.format(self.path_to_data, subj, action, 1)
+                    # print("Reading subject {0}, action {1}, subaction {2}".format(subj, action, 1))
+                    filename = '{0}/S{1}/{2}_{3}.txt'.format(
+                        self.path_to_data, subj, action, 1)
                     the_sequence1 = data_utils.readCSVasFloat(filename)
                     n, d = the_sequence1.shape
                     even_list = range(0, n, self.sample_rate)
 
                     num_frames1 = len(even_list)
                     the_sequence1 = np.array(the_sequence1[even_list, :])
-                    # the_seq1 = torch.from_numpy(the_sequence1).float().cuda()
+                    # the_seq1 = torch.from_numpy(the_sequence1).float().to(device)
                     the_sequence1[:, 0:6] = 0
                     # p3d1 = data_utils.expmap2xyz_torch(the_seq1)
                     self.seq[(subj, action, 1)] = the_sequence1
 
-                    #print("Reading subject {0}, action {1}, subaction {2}".format(subj, action, 2))
-                    filename = '{0}/S{1}/{2}_{3}.txt'.format(self.path_to_data, subj, action, 2)
+                    # print("Reading subject {0}, action {1}, subaction {2}".format(subj, action, 2))
+                    filename = '{0}/S{1}/{2}_{3}.txt'.format(
+                        self.path_to_data, subj, action, 2)
                     the_sequence2 = data_utils.readCSVasFloat(filename)
                     n, d = the_sequence2.shape
                     even_list = range(0, n, self.sample_rate)
 
                     num_frames2 = len(even_list)
                     the_sequence2 = np.array(the_sequence2[even_list, :])
-                    # the_seq2 = torch.from_numpy(the_sequence2).float().cuda()
+                    # the_seq2 = torch.from_numpy(the_sequence2).float().to(device)
                     the_sequence2[:, 0:6] = 0
                     # p3d2 = data_utils.expmap2xyz_torch(the_seq2)
                     self.seq[(subj, action, 2)] = the_sequence2
 
                     fs_sel1, fs_sel2 = data_utils.find_indices_256(num_frames1, num_frames2, seq_len,
-                                                                     input_n=self.in_n)
-                    #fs_sel1, fs_sel2 = data_utils.find_indices_srnn(num_frames1, num_frames2, seq_len,
+                                                                   input_n=self.in_n)
+                    # fs_sel1, fs_sel2 = data_utils.find_indices_srnn(num_frames1, num_frames2, seq_len,
                     #                                                input_n=self.in_n)
 
                     valid_frames = fs_sel1[:, 0]
